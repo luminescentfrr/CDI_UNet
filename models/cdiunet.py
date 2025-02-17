@@ -265,13 +265,23 @@ class ContrastDrivenFeatureAggregation(nn.Module):
 
         # 前景注意力计算
         v_unfolded = self.unfold(v).reshape(B, self.num_heads, self.head_dim, self.kernel_size * self.kernel_size, -1).permute(0, 1, 4, 3, 2)
+        # 使用torch.cuda.empty_cache()在大型计算之间释放缓存
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
         attn_fg = self.compute_attention(fg, B, H, W, C, 'fg')  # 计算前景注意力
         x_weighted_fg = self.apply_attention(attn_fg, v_unfolded, B, H, W, C)  # 应用前景注意力
+
+        # 使用torch.cuda.empty_cache()在大型计算之间释放缓存
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
 
         # 背景注意力计算
         v_unfolded_bg = self.unfold(x_weighted_fg.permute(0, 3, 1, 2)).reshape(B, self.num_heads, self.head_dim, self.kernel_size * self.kernel_size, -1).permute(0, 1, 4, 3, 2)
         attn_bg = self.compute_attention(bg, B, H, W, C, 'bg')  # 计算背景注意力
         x_weighted_bg = self.apply_attention(attn_bg, v_unfolded_bg, B, H, W, C)  # 应用背景注意力
+        # 使用torch.cuda.empty_cache()在大型计算之间释放缓存
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
 
         # 将 x_weighted_bg 变换回 (B, C, H, W) 形式
         x_weighted_bg = x_weighted_bg.permute(0, 3, 1, 2)
@@ -322,45 +332,50 @@ class CDI_UNet(nn.Module):
         self.enc1_main = nn.Sequential(
             nn.Conv2d(in_channels, base_c, kernel_size=3, padding=1),
             nn.BatchNorm2d(base_c),
-            nn.ReLU(inplace=True),
+            nn.Dropout2d(0.15),
             InceptionDWConv2d(base_c),
-            PCBAM(base_c)
+            PCBAM(base_c),
+            nn.GELU()
         )
         
         self.enc2_main = nn.Sequential(
             nn.MaxPool2d(2),
             nn.Conv2d(base_c, base_c*2, kernel_size=3, padding=1),
             nn.BatchNorm2d(base_c*2),
-            nn.ReLU(inplace=True),
+            nn.Dropout2d(0.15),
             InceptionDWConv2d(base_c*2),
-            PCBAM(base_c*2)
+            PCBAM(base_c*2),
+            nn.GELU()
         )
         
         self.enc3_main = nn.Sequential(
             nn.MaxPool2d(2),
             nn.Conv2d(base_c*2, base_c*4, kernel_size=3, padding=1),
             nn.BatchNorm2d(base_c*4),
-            nn.ReLU(inplace=True),
+            nn.Dropout2d(0.15),
             InceptionDWConv2d(base_c*4),
-            PCBAM(base_c*4)
+            PCBAM(base_c*4),
+            nn.GELU()
         )
         
         self.enc4_main = nn.Sequential(
             nn.MaxPool2d(2),
             nn.Conv2d(base_c*4, base_c*8, kernel_size=3, padding=1),
             nn.BatchNorm2d(base_c*8),
-            nn.ReLU(inplace=True),
+            nn.Dropout2d(0.15),
             InceptionDWConv2d(base_c*8),
-            PCBAM(base_c*8)
+            PCBAM(base_c*8),
+            nn.GELU()
         )
         
         self.enc5_main = nn.Sequential(
             nn.MaxPool2d(2),
             nn.Conv2d(base_c*8, base_c*16, kernel_size=3, padding=1),
             nn.BatchNorm2d(base_c*16),
-            nn.ReLU(inplace=True),
+            nn.Dropout2d(0.15),
             InceptionDWConv2d(base_c*16),
-            PCBAM(base_c*16)
+            PCBAM(base_c*16),
+            nn.GELU()
         )
         
         # Bridge (Encoder 6)
@@ -368,9 +383,10 @@ class CDI_UNet(nn.Module):
             nn.MaxPool2d(2),
             nn.Conv2d(base_c*16, base_c*32, kernel_size=3, padding=1),
             nn.BatchNorm2d(base_c*32),
-            nn.ReLU(inplace=True),
+            nn.Dropout2d(0.15),
             InceptionDWConv2d(base_c*32),
-            PCBAM(base_c*32)
+            PCBAM(base_c*32),
+            nn.GELU()
         )
         
         # ====== Auxiliary Segmentation Heads ======
@@ -385,8 +401,9 @@ class CDI_UNet(nn.Module):
         self.dec5 = nn.Sequential(
             nn.Conv2d(base_c*32, base_c*16, kernel_size=3, padding=1),
             nn.BatchNorm2d(base_c*16),
-            nn.ReLU(inplace=True),
-            InceptionDWConv2d(base_c*16)
+            nn.Dropout2d(0.15),
+            InceptionDWConv2d(base_c*16),
+            nn.GELU()
         )
         self.cdfa5 = ContrastDrivenFeatureAggregation(base_c*16, out_c=base_c*16)
         
@@ -394,8 +411,9 @@ class CDI_UNet(nn.Module):
         self.dec4 = nn.Sequential(
             nn.Conv2d(base_c*16, base_c*8, kernel_size=3, padding=1),
             nn.BatchNorm2d(base_c*8),
-            nn.ReLU(inplace=True),
-            InceptionDWConv2d(base_c*8)
+            nn.Dropout2d(0.15),
+            InceptionDWConv2d(base_c*8),
+            nn.GELU()
         )
         self.cdfa4 = ContrastDrivenFeatureAggregation(base_c*8, out_c=base_c*8)
         
@@ -403,8 +421,9 @@ class CDI_UNet(nn.Module):
         self.dec3 = nn.Sequential(
             nn.Conv2d(base_c*8, base_c*4, kernel_size=3, padding=1),
             nn.BatchNorm2d(base_c*4),
-            nn.ReLU(inplace=True),
-            InceptionDWConv2d(base_c*4)
+            nn.Dropout2d(0.15),
+            InceptionDWConv2d(base_c*4),
+            nn.GELU()
         )
         self.cdfa3 = ContrastDrivenFeatureAggregation(base_c*4, out_c=base_c*4)
         
@@ -412,8 +431,9 @@ class CDI_UNet(nn.Module):
         self.dec2 = nn.Sequential(
             nn.Conv2d(base_c*4, base_c*2, kernel_size=3, padding=1),
             nn.BatchNorm2d(base_c*2),
-            nn.ReLU(inplace=True),
-            InceptionDWConv2d(base_c*2)
+            nn.Dropout2d(0.15),
+            InceptionDWConv2d(base_c*2),
+            nn.GELU()
         )
         self.cdfa2 = ContrastDrivenFeatureAggregation(base_c*2, out_c=base_c*2)
         
@@ -421,8 +441,9 @@ class CDI_UNet(nn.Module):
         self.dec1 = nn.Sequential(
             nn.Conv2d(base_c*2, base_c, kernel_size=3, padding=1),
             nn.BatchNorm2d(base_c),
-            nn.ReLU(inplace=True),
-            InceptionDWConv2d(base_c)
+            nn.Dropout2d(0.15),
+            InceptionDWConv2d(base_c),
+            nn.GELU()
         )
         self.cdfa1 = ContrastDrivenFeatureAggregation(base_c, out_c=base_c)
         
