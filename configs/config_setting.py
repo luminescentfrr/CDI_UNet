@@ -23,9 +23,9 @@ class setting_config:
     # 数据集配置
     datasets = 'isic17'           
     if datasets == 'isic17':
-        data_path = 'D:/python/research/computer vision/CDIUNet/data/isic2017/'
+        data_path = '.CDIUNet/data/isic2017/'
     elif datasets == 'isic18':
-        data_path = 'D:/python/research/computer vision/CDIUNet/data/isic2018/'
+        data_path = '.CDIUNet/data/isic2018/'
     else:
         raise Exception('datasets is not right!')
     
@@ -40,7 +40,7 @@ class setting_config:
     num_workers = 2               # 数据加载线程数
     print_interval = 10           # 打印间隔
     save_interval = 50   
-    base_dir = 'D:/python/research/computer vision/CDIUNet/results'
+    base_dir = './CDIUNet/results'
     work_dir = os.path.join(base_dir, 
                            f'{network}_{datasets}_{datetime.now().strftime("%A_%d_%B_%Y_%Hh_%Mm_%Ss")}/')      # 工作目录
     gpu_id = '0'                  # GPU ID
